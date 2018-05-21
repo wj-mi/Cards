@@ -214,11 +214,19 @@ def _more_cards_judge(cards, laizi, type_list):
             # 3n+2n+1+2laizi => 4n+2+2
             elif len(card_count[2]) == 1 and len(card_count[1]) == len(card_count[0]) == 1 and laizi_count == 2:
                 type_list.append([cardType.FOUR_TWO_DOUBLE, card_count[2][0], cards_len, laizi_count])
-
+            # 3n+1+2laizi  => 4+1+1
+            elif len(card_count[2]) == 1 and len(card_count[0]) == 1 and len(card_count[1]) == len(card_count[3]) == 0:
+                type_list.append([cardType.FOUR_TWO_SIGLE, card_count[2][0], cards_len, laizi_count])
             # 2n+2j+2k+2laizi  ==> 4带2对
             elif len(card_count[1]) == 3 and laizi_count == 2 and card_count[0] == card_count[2] == card_count[3]:
                 max_card = _find_max(card_count[1])
                 type_list.append([cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count])
+            # 2n+2k+2laizi ==> 4n+1+1 /
+            elif len(card_count[1]) == 2 and len(card_count[0]) == len(card_count[2]) == len(card_count[3]) == 0:
+                max_card = _find_max(card_count[1])
+                type_list.append([cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count])
+            elif len(card_count[1]) == 1 and len(card_count[0]) == 2 and len(card_count[2]) == len(card_count[3]) == 0:
+                type_list.append([cardType.FOUR_TWO_SIGLE, card_count[1][0], cards_len, laizi_count])
 
             if CARD_TWO not in cards:
 
@@ -768,14 +776,15 @@ if __name__ == '__main__':
         # [1, 14, 27, 2, 15, 29, 10, 12],
         # [2,2,2,3,3,4,10, 12],
         # [1, 2, 3, 4, 5, 6, 7, 7, 7, 10, 11, 12],
-        [15, 41, 18, 16, 42, 5, 17, 45],
-        [29, 3, 18, 5, 21, 8],
-        #[2, 2, 2, 3, 3, 4, 4, 4, 5]
+        # [15, 41, 18, 16, 42, 5, 17, 45],
+        # [29, 3, 18, 5, 21, 8],
+        #[2, 2, 2, 3, 3, 4, 4, 4, 5],
+        [10, 10, 12, 5, 1, 1]
 
         # [15, 41, 18, 16, 42, 5, 17, 45]
 
     ]
-    laizi = 21
+    laizi = 1
     for card in cards:
         card_type = getCardType(card, laizi)
         print("card type: {}".format(card_type))
