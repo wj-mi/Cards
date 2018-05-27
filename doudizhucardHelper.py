@@ -723,11 +723,11 @@ def compareCard(card_type1, card_type2):
         if type1 == cardType.BOMB:   # 炸弹判断 先判断级别，在判断大小
             if card_type1[-1] == 0 and card_type2[-1] != 0:
                 # 纯癞子＞硬炸弹＞软炸弹
-                result = MAX if card_type2[-1] != 4 else MIN
+                result = MIN if card_type2[-1] != 4 else MAX   # card2软炸蛋
             elif card_type1[-1] != 0 and card_type2[-1] == 0:
-                result = MIN if card_type1[-1] != 4 else MAX
+                result = MAX if card_type1[-1] != 4 else MIN   # CARD1[-1] >0 <4 软炸蛋
             elif card_type1[-1] == 4 or card_type2[-1] == 4:
-                result = MAX if card_type1[-1] == 4 else MIN
+                result = MIN if card_type1[-1] == 4 else MAX
             else:  # 要么都没有癞子，要么都有癞子 判断大小
                 if card_type1[1] == card_type2[1]:
                     #  两个都是软炸弹，大小相等
@@ -735,7 +735,7 @@ def compareCard(card_type1, card_type2):
                 else:
                     # result = MAX if card_type1[1] > card_type2[1] else MIN
                     max_card = _find_max([card_type1[1], card_type2[1]])
-                    result = MAX if max_card == card_type1[1] else MIN
+                    result = MIN if max_card == card_type1[1] else MAX
 
         # 顺子，飞机带翅膀，四代二 牌型相同的基础上还要求张数相同
         else:    #  type1 in special_card_type:
@@ -760,6 +760,7 @@ def test():
     cardType1 = getCardType(card1, 1)
     cardType2 = getCardType(card2, 1)
     print(compareCard(cardType1[0], cardType2[1]))
+
 
 if __name__ == '__main__':
     cards = [
