@@ -115,9 +115,9 @@ def _more_cards_judge(cards, laizi, type_list):
         _remove_types_of_card(cards, laizi, laizi_count)
     card_count = _card_counter(cards)  # 二维数组card_count[0, 1, 1, 0]  单牌:[0], 对子:[1] 三个:[1], 四个:[0]
     # 6张以上的牌若包含大小王,不构成任何牌型
-    if BIGKING in cards or LITTLEKING in cards:
-        type_list.append([cardType.NOTHING, _find_max(cards), cards_len, laizi_count])
-        return
+    # if BIGKING in cards or LITTLEKING in cards:
+    #     type_list.append([cardType.NOTHING, _find_max(cards), cards_len, laizi_count])
+    #     return
 
     # 依次考虑能否凑成可能牌型
     if not laizi_count:
