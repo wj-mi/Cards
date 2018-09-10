@@ -20,6 +20,11 @@ S2CCard = [12, 0, 1,2,3,4,5,6,7,8,9,10,11,
             65, 66
         ]
 
+
+
+ #
+
+
 # # 牌型： 只判断牌型
 
 class cardType:
@@ -79,247 +84,169 @@ def getCardType(cards, laizi):
 def _judge_type(cards, laizi):
     """cards_len, laizi_count """
     type_list = []
+    # -------------
     cards_len = len(cards)              # 牌的张数
     laizi_count = cards.count(laizi)    # 癞子牌张数
+    if laizi_count:
+        _remove_types_of_card(cards, laizi, laizi_count)
+    card_count = _card_counter(cards)  # 四元数组card_count[0, 1, 1, 0]  单牌:0, 对子:1 三个:1, 四个:0
+    # -------------------
     if cards_len == 1:
-        type_list.append([cardType.SINGLE, _find_max(cards), cards_len, laizi_count])
+        # 单独的一张赖子，只能当本身使用，不能当其他牌
+        one_type = [cardType.SINGLE, card_count[0][0], cards_len, laizi_count]
+        _add_type_into_result(one_type, type_list)
+    # 2n / 2laizi/ 1+1laizi
     elif cards_len == 2:
-        if cards.count(cards[0]) == 2:  # duizi
-            type_list.append([cardType.DOUBLE, _find_max(cards), cards_len, laizi_count])
-        elif cards[0] in [BIGKING, LITTLEKING] and cards[1] in [BIGKING, LITTLEKING]:
-            type_list.append([cardType.ROCKET, _find_max(cards), cards_len, laizi_count])
+        if len(card_count[1]) == 1:  # duizi
+            _add_type_into_result([cardType.DOUBLE, card_count[1][0], cards_len, laizi_count], type_list)
+        elif BIGKING in card_count[0] and LITTLEKING in card_count[0]:
+            _add_type_into_result([cardType.ROCKET, _find_max(cards), cards_len, laizi_count], type_list)
+        elif laizi_count == 2:
+            one_type = [cardType.DOUBLE, laizi, cards_len, laizi_count]
+            _add_type_into_result(one_type, type_list)
         elif laizi_count == 1:   # 有一个癞子牌,当且仅当另一个牌为除大小王之外的牌,可以构成对子
-            single_card = [item for item in cards if item != laizi][0]
+            single_card = card_count[0][0]
             if single_card not in [BIGKING, LITTLEKING]:
-                type_list.append([cardType.DOUBLE, single_card, cards_len, laizi_count])
+                _add_type_into_result([cardType.DOUBLE, single_card, cards_len, laizi_count], type_list)
             else:
-                type_list.append([cardType.NOTHING, _find_max(cards), cards_len, laizi_count])
+                # 一个单张 和一个赖子 最大牌为赖子，赖子可以当大小王以外的任意牌，故默认为2
+                _add_type_into_result([cardType.NOTHING, CARD_TWO, cards_len, laizi_count], type_list)
         else:
-            type_list.append([cardType.NOTHING, _find_max(cards), cards_len, laizi_count])
+            _add_type_into_result([cardType.NOTHING, _find_max(cards), cards_len, laizi_count], type_list)
     elif cards_len == 3:
-        _three_cards_judge(cards, laizi, type_list)
+        _three_cards_judge(card_count, laizi, type_list, laizi_count, cards_len)
     elif cards_len == 4:
-        _four_cards_judge(cards, laizi, type_list)
+        _four_cards_judge(card_count, laizi, type_list, laizi_count, cards_len)
     elif cards_len == 5:
-        _five_cards_judge(cards, laizi, type_list)
+        _five_cards_judge(card_count, laizi, type_list, laizi_count, cards_len)
     else:
-        _more_cards_judge(cards, laizi, type_list)
+        _more_cards_judge(card_count, laizi, type_list, laizi_count, cards_len)
+    if not type_list:
+        type_list.append([cardType.NOTHING, _find_max(cards), cards_len, laizi_count])
     return type_list
 
 
-def _more_cards_judge(cards, laizi, type_list):
-    """6张以上的牌判牌逻辑  4n+1+1, 2n+2+2, 单顺, 双顺, 333444, 333444+1+1, 333444+2n+2M"""
-    cards_len = len(cards)
-    laizi_count = cards.count(laizi)
-    if laizi_count:
-        _remove_types_of_card(cards, laizi, laizi_count)
-    card_count = _card_counter(cards)  # 二维数组card_count[0, 1, 1, 0]  单牌:[0], 对子:[1] 三个:[1], 四个:[0]
-    # 6张以上的牌若包含大小王,不构成任何牌型
-    # if BIGKING in cards or LITTLEKING in cards:
-    #     type_list.append([cardType.NOTHING, _find_max(cards), cards_len, laizi_count])
-    #     return
+def _add_type_into_result(one_type, type_list):
+    if one_type not in type_list:
+        type_list.append(one_type)
 
-    # 依次考虑能否凑成可能牌型
-    if not laizi_count:
-        if len(card_count[3]) == 1:
-            max_card = card_count[3][0]    # _find_card_by_count(cards, 4)
-            # 4n+1+1
-            if (len(card_count[0]) == 2 and len(card_count[1]) == len(card_count[2]) == 0) or \
-                    (len(card_count[1]) == 1 and len(card_count[0]) == len(card_count[2]) == 0):
-                type_list.append([cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count])
-            elif len(card_count[1]) == 2 and len(card_count[0]) == len(card_count[2]) == 0:  # 4n+2+2
-                type_list.append([cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count])
 
-        # 33334444
-        if len(card_count[3]) == 2:
-            type_list.append([cardType.FOUR_TWO_DOUBLE, _find_max(card_count[3]), cards_len, laizi_count])
+def _more_cards_judge(card_count, laizi, type_list, laizi_count, cards_len):
+    """6张以上的牌判牌逻辑  4带2 ， 4带2对, 单顺, 双顺, 三顺, 飞机带翅膀"""
 
-            if CARD_TWO not in cards and abs(card_count[3][0] - card_count[3][1]) == 1:
-                type_list.append([cardType.AIR_PLANE_SINGLE, max(card_count[3]), cards_len, laizi_count])
-        if CARD_TWO not in cards:
+    # 依次考虑能否凑成可能牌型 4带二
+    _four_two(card_count, laizi, laizi_count, type_list, cards_len)
 
-            if len(card_count[1]) == len(card_count[2]) == len(card_count[3]) == 0:  # 全是单牌,且不包含2
-                _judge_single_shun_with_laizi(card_count[0], laizi_count, type_list, cards_len)
+    if len(card_count[1]) == len(card_count[2]) == len(card_count[3]) == 0:  # 全是单牌,且不包含2
+        _judge_single_shun_with_laizi(card_count[0], laizi_count, type_list, cards_len)
 
-            _can_make_doubleshun(card_count, 0, type_list, cards_len)
-            _can_make_shanshun(card_count, 0, type_list, cards_len)
-        _air_and_chibang(card_count, laizi_count, type_list, cards_len)
-        # # 飞机带翅膀
-        # if len(card_count[2]) >= 2:
-        #     plane_num = len(card_count[2])
-        #     if _judge_lianxu(card_count[2]) == 0:
-        #         max_card = _find_max(card_count[2])
-        #         if len(card_count[0]) == plane_num:
-        #             type_list.append([cardType.AIR_PLANE_SINGLE, max_card, cards_len, laizi_count])
-        #         elif len(card_count[1]) == plane_num and len(card_count[0]) == len(card_count[3]) == 0:
-        #             type_list.append([cardType.AIR_PLANE_DOUBLE, max_card, cards_len, laizi_count])
-    else:
-        if laizi_count == 1:
-            # 4n + 1+laizi
-            if len(card_count[3]) == 1:  # 未考虑4n+2m
+    _can_make_doubleshun(card_count, laizi_count, type_list, cards_len)
+    _can_make_shanshun(card_count, laizi_count, type_list, cards_len)
+    _air_and_chibang(card_count, laizi_count, type_list, cards_len)
+
+
+def _four_two(card_count, laizi, laizi_count, type_list, cards_len):
+    """四带两手牌判断"""
+    one_type = []
+    if cards_len == 6:   # 4n+1+1
+        if not laizi_count and len(card_count[3]) == 1 and len(card_count[0]) == 2:
+            one_type = [cardType.FOUR_TWO_SIGLE, card_count[3][0], cards_len, laizi_count]
+        elif laizi_count == 1:
+            max_card = -1
+            if len(card_count[3]) == 1:  # 1+4+laizi
                 max_card = card_count[3][0]
-                if len(card_count[0]) == 1 and len(card_count[1]) == len(card_count[2]) == 0:  # 4n+1+laizi
-                    type_list.append([cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count])
-                elif len(card_count[1]) == 1 and len(card_count[0]) == 1:  # 4n+2m+1+laizi
-                    type_list.append([cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count])
-                # 4n+3m+laizi => 4n+2/3n+3m+1+1
-                elif len(card_count[2]) == 1 and len(card_count[0]) == len(card_count[1]) == 0:
-                    max_card = max_card if max_card > card_count[2][0] else card_count[2][0]
-                    type_list.append([cardType.AIR_PLANE_DOUBLE, max_card, cards_len, laizi_count])
-                    if CARD_TWO not in card_count[3]+card_count[2] and abs(card_count[3][0] - card_count[2][0])==1:
-                        type_list.append([cardType.AIR_PLANE_SINGLE, max_card, cards_len, laizi_count])
-            if len(card_count[2]) == 1:    # 3n
+            elif len(card_count[2]) == 1 and len(card_count[1]) == 1 or len(card_count[0]) == 2:   # 2+3 or 1+1+3
                 max_card = card_count[2][0]
-                # 3n+ laizi+2m
-                if len(card_count[1]) == 1 and len(card_count[0]) == len(card_count[3]) == 0:
-                    type_list.append([cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count])
-                    if CARD_TWO not in card_count[2]+card_count[1] and abs(card_count[1][0] - card_count[2][0]) == 1:
-                        max_card = card_count[1][0] if card_count[1][0] > card_count[2][0] else card_count[2][0]
-                        type_list.append([cardType.THREE_SHUN, max_card, cards_len, laizi_count])
-                elif len(card_count[0]) == 2 and len(card_count[1]) == len(card_count[3]) == 0:   # 3n+1+1+laizi
-                    type_list.append([cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count])
-                elif len(card_count[1]) == 2 and len(card_count[0]) == len(card_count[3]) == 0:
-                    type_list.append([cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count])
-
-            if CARD_TWO not in cards:
-                # 全是单牌
-                if len(card_count[1]) == len(card_count[2]) == len(card_count[3]) == 0:
-                    _judge_single_shun_with_laizi(card_count[0], laizi_count, type_list, cards_len)
-                _can_make_doubleshun(card_count, laizi_count, type_list, cards_len)
-                _can_make_shanshun(card_count, laizi_count, type_list, cards_len)
-            _air_and_chibang(card_count, laizi_count, type_list, cards_len)
-
+            elif len(card_count[1]) == 2:  # 2+2+1+laizi
+                max_card = _find_max(card_count[1])
+            if max_card != -1:
+                one_type = [cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count]
         elif laizi_count == 2:
-            # TODO 除开单双顺\飞机带翅膀,其余牌型采用穷举
-            if len(card_count[3]) == 1:  # 4n
+            max_card = -1
+            if len(card_count[1]) == 1:  # 2+1+1+2laizi
+                max_card = card_count[1][0]
+            elif len(card_count[2]) == 1: # 3+1+2laizi
+                max_card = card_count[2][0]
+            elif len(card_count[1]) == 2:
+                max_card = _find_max(card_count[1])
+            if max_card != -1:
+                one_type = [cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count]
+        elif laizi_count == 3:
+            max_card = -1
+            if len(card_count[0]) == 3:   # 1+1+1/ 1+2
+                tmp_card_0 = card_count[0][:]
+                if BIGKING in tmp_card_0:
+                    tmp_card_0.pop(BIGKING)
+                if LITTLEKING in tmp_card_0:
+                    tmp_card_0.pop(LITTLEKING)
+                max_card = _find_max(tmp_card_0)
+            elif len(card_count[1]) == 1:   # 1+2
+                max_card = card_count[1][0] if card_count[0][0] in [BIGKING, LITTLEKING] else _find_max(card_count[0]+card_count[1])
+            if max_card != -1:
+                one_type = [cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count]
+        elif laizi_count == 4:
+            if len(card_count[0]) == 2:  # 1+1 +4laizi
+                if BIGKING in card_count[0] and LITTLEKING in card_count[0]:
+                    max_card = laizi
+                else:
+                    tmp_card_0 = card_count[0][:]
+                    if BIGKING in tmp_card_0:
+                        tmp_card_0.pop(BIGKING)
+                    if LITTLEKING in tmp_card_0:
+                        tmp_card_0.pop(LITTLEKING)
+                    max_card = _find_max(tmp_card_0+[laizi])
+                one_type = [cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count]
+            elif len(card_count[1]) == 2:  # 2+4laizi
+                max_card = _find_max([card_count[1][0], laizi])
+                one_type = [cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count]
+    elif cards_len == 8:  # 4带2对
+        max_card = -1
+        if not laizi_count:
+            if len(card_count[3]) == 1 and len(card_count[1]) == 2:
                 max_card = card_count[3][0]
-                if len(card_count[0]) == len(card_count[1]) == len(card_count[2]) == 0:  #4n+2laizi
-                    type_list.append([cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count])
-
-                elif len(card_count[0]) == 2 and len(card_count[1]) == len(card_count[2]) == 0:
-                    type_list.append([cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count])
-                    if CARD_TWO not in (max_card, card_count[0][0]) and abs(max_card - card_count[0][0]) == 1:
-                        max_card = max_card if max_card > card_count[0][0] else card_count[0][0]
-                        type_list.append([cardType.AIR_PLANE_SINGLE, max_card, cards_len, laizi_count])
-                    elif CARD_TWO not in (max_card, card_count[0][1]) and abs(max_card - card_count[0][1]) == 1:
-                        max_card = max_card if max_card > card_count[0][1] else card_count[0][1]
-                        type_list.append([cardType.AIR_PLANE_SINGLE, max_card, cards_len, laizi_count])
-                # 2laizi+4n+2m
-                elif len(card_count[1]) == 1 and len(card_count[0]) == len(card_count[2]) == 0:
-                    max_card = max_card if max_card > card_count[1][0] else card_count[1][0]
-                    type_list.append([cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count])
-                    if CARD_TWO not in cards and abs(card_count[3][0] - card_count[1][0]) == 1:
-                        type_list.append([cardType.AIR_PLANE_SINGLE, max_card, cards_len, laizi_count])
-            # 3n+3m
-            elif len(card_count[2]) == 2 and len(card_count[0]) == len(card_count[1]) == len(card_count[3]) == 0:
+                # one_type = [cardType.FOUR_TWO_DOUBLE, card_count[3][0], cards_len, laizi_count]
+        elif laizi_count == 1:
+            if len(card_count[3]) == 1 and len(card_count[1]) == 1 and card_count[0][0] not in [BIGKING, LITTLEKING]:  # 4+2+1
+                max_card = card_count[3][0]
+                # one_type = [cardType.FOUR_TWO_DOUBLE, card_count[3][0], cards_len, laizi_count]
+            elif len(card_count[2]) == 1 and len(card_count[1]) == 2:  # 3+laizi+2+2
+                max_card = card_count[2][0]
+                # one_type = [cardType.FOUR_TWO_DOUBLE, card_count[2][0], cards_len, laizi_count]
+        elif laizi_count == 2:
+            if len(card_count[2]) == 2:  # 3+3 +2laizi
                 max_card = _find_max(card_count[2])
-                type_list.append([cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count])
-                if CARD_TWO not in cards and abs(card_count[2][0] - card_count[2][1]) == 1:
-                    type_list.append([cardType.THREE_ONE, max_card, cards_len, laizi_count])
-            # 3n+2n+1+2laizi => 4n+2+2
-            elif len(card_count[2]) == 1 and len(card_count[1]) == len(card_count[0]) == 1 and laizi_count == 2:
-                type_list.append([cardType.FOUR_TWO_DOUBLE, card_count[2][0], cards_len, laizi_count])
-            # 3n+1+2laizi  => 4+1+1
-            elif len(card_count[2]) == 1 and len(card_count[0]) == 1 and len(card_count[1]) == len(card_count[3]) == 0:
-                type_list.append([cardType.FOUR_TWO_SIGLE, card_count[2][0], cards_len, laizi_count])
-            # 2n+2j+2k+2laizi  ==> 4带2对
-            elif len(card_count[1]) == 3 and laizi_count == 2 and card_count[0] == card_count[2] == card_count[3]:
+            elif len(card_count[2]) == len(card_count[1])  ==  1 and card_count[0][0] not in [BIGKING, LITTLEKING]:
+                max_card = _find_max(card_count[2][0])
+            elif len(card_count[1]) == 3:  # 2+2+2
                 max_card = _find_max(card_count[1])
-                type_list.append([cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count])
-            # 2n+2k+2laizi ==> 4n+1+1 /
-            elif len(card_count[1]) == 2 and len(card_count[0]) == len(card_count[2]) == len(card_count[3]) == 0:
-                max_card = _find_max(card_count[1])
-                type_list.append([cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count])
-            elif len(card_count[1]) == 1 and len(card_count[0]) == 2 and len(card_count[2]) == len(card_count[3]) == 0:
-                type_list.append([cardType.FOUR_TWO_SIGLE, card_count[1][0], cards_len, laizi_count])
-
-            if CARD_TWO not in cards:
-
-                # 顺子判断
-                card_set = set(cards)
-                card_set = list(card_set)
-                card_set_len = len(card_set)
-                if len(card_count[1]) == len(card_count[2]) == len(card_count[3]) == 0:
-                    _judge_single_shun_with_laizi(card_count[0], laizi_count, type_list, cards_len)
-                _can_make_doubleshun(card_count, laizi_count, type_list, cards_len)
-                _can_make_shanshun(card_count, laizi_count, type_list, cards_len)
-            _air_and_chibang(card_count, laizi_count, type_list, cards_len)
-
-        elif laizi_count == 3:  # 3个癞子
-            # 判断4带两手牌的情况 1+1+1+3laizi/ 2n+1+1+3laizi   ,
-            # 2+2+1+3laizi/4n+1+3laizi/3n+1+1+3laizi
-            # 3liaiz+1+1+1
-            if len(card_count[0]) == 3 and len(card_count[1]+card_count[2]+card_count[3]) == 0:
-                max_card = max(card_count[0])
-                type_list.append([cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count])
-                card_count[0] = sorted(card_count[0])
-                if CARD_TWO not in card_count[0] and (card_count[0][-1] - card_count[0][0]) == 2:
-                    type_list.append([cardType.DOUBLE_SHUN, max_card, cards_len, laizi_count])
-            # 3laizi+1+2n
-            elif len(card_count[0]) == 1 and len(card_count[1]) == 1 and len(card_count[2]+card_count[3]) == 0:
-                max_card = _find_max(card_count[0]+card_count[1])
-                type_list.append([cardType.FOUR_TWO_SIGLE, max_card, cards_len, laizi_count])
-
-            # 2+2+1+3laizi
-            elif len(card_count[0]) == 1 and len(card_count[1]) == 2 and len(card_count[2]) == len(card_count[3]) == 0:
-                max_card = max(card_count[0]+card_count[1])
-                type_list.append(cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count)
-            # 1+4+3laizi
-            elif len(card_count[0]) == 1 and len(card_count[3]) == 1 and len(card_count[1]) == len(card_count[2]) == 0:
-                max_card = max(card_count[0]+card_count[3])
-                type_list.append(cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count)
-            # 3n+1+1+3laizi
-            elif len(card_count[2]) == 1 and len(card_count[0]) == 2 and len(card_count[1]) == len(card_count[3]) == 0:
-                type_list.append([cardType.FOUR_TWO_SIGLE, card_count[2][0], cards_len, laizi_count])
-
-            # -------------开始判断顺子和飞机带翅膀等情况  TODO飞机带翅膀
-            if CARD_TWO not in cards:
-                # if _judge_lianxu(cards) <= laizi_count:   # 简单过滤 连续牌
-                    # 单顺判断
-                    # if len(card_count[1]) == len(card_count[2]) == len(card_count[3]) == 0:
-                    #     new_cards = sorted(card_count[0])
-                    #     cards_gap = new_cards[-1] - new_cards[0]
-                    #     cards_gap_tmp = laizi_count + len(new_cards)-1 -cards_gap
-                    #     max_card = 12 if new_cards[-1] >= 12 - cards_gap_tmp else new_cards[-1] + cards_gap_tmp
-                    #
-                    #     type_list.append([cardType.SINGLE_SHUN, max_card, cards_len, laizi_count])
-                _judge_single_shun_with_laizi(card_count[0], laizi_count, type_list, cards_len)
-                _can_make_doubleshun(card_count, laizi_count, type_list, cards_len)
-                _can_make_shanshun(card_count, laizi_count, type_list, cards_len)
-            _air_and_chibang(card_count, laizi_count, type_list, cards_len)
-        elif laizi_count == 4:   #
-            if len(card_count[3]) == 1 and len(card_count[0]) == len(card_count[1]) == len(card_count[2]) == 0:  # 4n+4laizi
-                max_card = card_count[3][0] if card_count[3][0] > laizi else laizi
-                type_list.append([cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count])
-                if abs(card_count[3][0] - laizi) == 1:
-                    # max_card = card_count[3][0] if card_count[3][0] > laizi else laizi
-                    type_list.append([cardType.AIR_PLANE_SINGLE, max_card, cards_len, laizi_count])
-            # 1+1+4laizi
-            elif len(card_count[0]) == 2 and len(card_count[1]) == len(card_count[2]) == len(card_count[3]) == 0:
-                type_list.append([cardType.FOUR_TWO_SIGLE, laizi, cards_len, laizi_count])
-            # 2n+2m+ 4laizi
-            elif len(card_count[1]) == 2 and len(card_count[0]) == len(card_count[2]) == len(card_count[3]) == 0:
+            elif len(card_count[3]) == len(card_count[1]) == 1:  # 4+2 +2laizi
+                max_card = _find_max(card_count[3]+card_count[1])
+            elif len(card_count[3]) == 1 and len(card_count[0]) == 2 and BIGKING not in card_count[0] \
+                    and LITTLEKING not in card_count[0]:  # 4+1+1+2laizi
+                max_card = card_count[3][0]
+        elif laizi_count == 3:
+            if len(card_count[1]) == 2 and card_count[0][0] not in [BIGKING, LITTLEKING]:  # 2+2+1
+                max_card = _find_max(card_count[1]+ card_count[0])
+            elif len(card_count[2]) == 1 and BIGKING not in card_count[0] and LITTLEKING not in card_count[0]: # 3+1+1+3laizi
+                max_card = _find_max(card_count[3]+card_count[0])
+            elif len(card_count[2]) == len(card_count[1]) == 1:  # 2+3
+                max_card = _find_max(card_count[3]+card_count[1])
+            elif len(card_count[3]) == 1 and card_count[0][0] not in [BIGKING, LITTLEKING]:   # 4n+1+3laizi
+                max_card = _find_max(card_count[3]+card_count[0])
+        elif laizi_count == 4:
+            if len(card_count[0]) == 4 and BIGKING not in card_count[0] and LITTLEKING not in card_count[0]:  # 1+1+1+1
+                max_card = _find_max(card_count[0])
+            elif len(card_count[0]) == 2 and BIGKING not in card_count[0] and LITTLEKING not in card_count[0] \
+                    and len(card_count[1]) == 1:  # 1+1+2n+4laizi
+                max_card = _find_max(card_count[0] + card_count[1])
+            elif len(card_count[1]) == 2:  # 2+2
                 max_card = _find_max(card_count[1]+[laizi])
-                type_list.append([cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count])
-                card_count[1] = sorted(card_count[1])
-                max_gap = card_count[1][-1] - card_count[1][0]
-                if max_gap == 1:
-                    max_card = card_count[1][-1] if card_count[1][-1] > 11 else card_count[1][-1] + 1
-                    type_list.append([cardType.THREE_SHUN, max_card, cards_len, laizi_count])
-                elif max_gap == 2:
-                    type_list.append([cardType.THREE_SHUN, max_card, cards_len, laizi_count])
-            # ----- 顺子判断
-            if CARD_TWO not in cards:
-
-                if _judge_lianxu(cards) < laizi_count:  # 简单过滤 连续牌
-
-                    _judge_single_shun_with_laizi(card_count[0], laizi_count, type_list, cards_len)
-                    _can_make_doubleshun(card_count, laizi_count, type_list, cards_len)
-                    _can_make_shanshun(card_count, laizi_count, type_list, cards_len)
-            _air_and_chibang(card_count, laizi_count, type_list, cards_len)
-
-    if not type_list:
-        type_list.append([cardType.NOTHING, _find_max(cards), cards_len, laizi_count])
+            elif len(card_count[3]) == 1:
+                max_card = _find_max(card_count[3]+ [laizi])
+        if max_card != -1:
+            one_type = [cardType.FOUR_TWO_DOUBLE, max_card, cards_len, laizi_count]
+    if one_type:
+        _add_type_into_result(one_type, type_list)
 
 
 def _air_and_chibang(card_count, laizi_count, type_list, cards_len):
@@ -355,22 +282,53 @@ def _air_and_chibang(card_count, laizi_count, type_list, cards_len):
             sub_air = _try_to_make_air_and_chibang(one_air, laizi_count, card_count, type_list, cards_len)
             if sub_air:
                 sub_airs.append(sub_air)
-        if sub_airs:
+            sub_air = _try_to_make_air_and_chibang(one_air[::-1], laizi_count, card_count, type_list, cards_len)
+            if sub_air:
+                sub_airs.append(sub_air)
+        while sub_airs:
+            child_airs = []
             for one_air in sub_airs:  # 每组飞机能否构成飞机带翅膀
                 sub_air = _try_to_make_air_and_chibang(one_air, laizi_count, card_count, type_list, cards_len)
+                if sub_air:
+                    child_airs.append(sub_air)
+            sub_airs = child_airs
+
+    if len(card_count[2]) == 1 and laizi_count >= 3:
+        # 3n+ 3laizi + 1+1
+        max_card = 12 if card_count[2][0] >= 12 else card_count[2][0] + 1
+        if cards_len == 8:
+            one_type = [cardType.AIR_PLANE_SINGLE, max_card, cards_len, laizi_count]
+            if one_type not in type_list:
+                type_list.append(one_type)
+        elif cards_len == 10 and (len(card_count[1]) == 2 or
+                                  (len(card_count[1]) == 1 and laizi_count == 4 and len(card_count[0]) == 1)):
+            _add_type_into_result([cardType.AIR_PLANE_DOUBLE, max_card, cards_len, laizi_count], type_list)
+    if laizi_count == 4:
+        if len(card_count[1]) == 1 and len(card_count[2]) == 0 and len(card_count[0]) == 2:
+            max_card = card_count[1][0] if card_count[1][0] == 12 else card_count[1][0] + 1
+            _add_type_into_result([cardType.AIR_PLANE_SINGLE, max_card, cards_len, laizi_count], type_list)
+        elif len(card_count[1]) == 2 and len(card_count[2]) == 0 and len(card_count[0]) == 0:  # 4+2+2:
+            max_card = _find_max(card_count[1])
+            max_card = max_card if max_card == 12  else max_card + 1
+            _add_type_into_result([cardType.AIR_PLANE_DOUBLE, max_card, cards_len, laizi_count], type_list)
+        # 4laizi+2+2+2
+        if len(card_count[1]) == 3 and len(card_count[0]) == len(card_count[2]) == len(card_count[3]) == 0:
+            max_card = _find_max(card_count[1])
+            _add_type_into_result([cardType.AIR_PLANE_DOUBLE, max_card, cards_len, laizi_count], type_list)
 
 
 def _try_to_make_air_and_chibang(one_air, laizi_count, card_count, type_list, cards_len):
     sub_air = []
-    one_air = sorted(one_air)
+    # one_air = sorted(one_air)
     one_air_len = len(one_air)
 
     # 去除所有癞子牌抵的牌
     more_laizi = laizi_count
     card_one = card_count[0][:]   # 备份原数据
     card_two = card_count[1][:]
-    three_number_card = 0
+    # three_number_card = 0
     laizi_air = 0
+    airs = set()
     for index in range(one_air_len-2, -1, -1):
         if one_air[index+1] in card_one:
             more_laizi -= 2
@@ -382,7 +340,8 @@ def _try_to_make_air_and_chibang(one_air, laizi_count, card_count, type_list, ca
         elif one_air[index+1] in card_count[3]:
             card_one.append(one_air[index+1])
             # three_number_card += 1
-        three_number_card += 1
+        airs.add(one_air[index+1])
+        # three_number_card += 1
         if one_air[index] in card_one:
             more_laizi -= 2
             card_one.remove(one_air[index])
@@ -393,12 +352,14 @@ def _try_to_make_air_and_chibang(one_air, laizi_count, card_count, type_list, ca
         elif one_air[index] in card_count[3]:
             card_one.append(one_air[index])
             # three_number_card += 1
-        three_number_card += 1
-        if one_air[index+1] - one_air[index] == 2:
+        airs.add(one_air[index])
+        # three_number_card += 1
+        if abs(one_air[index+1] - one_air[index]) == 2:
             more_laizi -= 3
             # air_len = air_len + 1    # 癞子抵一个飞机,飞机数量+1
             laizi_air += 1
-            three_number_card += 1
+            airs.add(one_air[index]+1)
+            # three_number_card += 1
         if more_laizi < 0:  # 若不能凑成飞机,从可能为飞机的列表中移除
             # air_cards.remove(one_air)
             if index == one_air_len-2:
@@ -407,23 +368,26 @@ def _try_to_make_air_and_chibang(one_air, laizi_count, card_count, type_list, ca
 
         # 可能构成飞机
         else:
+            three_number_card = len(airs)
             # 除了构成飞机牌的其余牌
             more_cards = len(card_one) + len(card_two) * 2 + more_laizi
 
-            if laizi_air:
-                max_card = 12 if one_air[-1] >= 11 else one_air[-1] + 1
-            else:
-                max_card = one_air[-1]
+            # if laizi_air:
+                # max_card = 12 if one_air[-1] >= 11 else one_air[-1] + 1
+
+            # else:
+            #     max_card = one_air[-1]
+            max_card = max(airs)
             if three_number_card == more_cards + more_laizi:
                 #
-                type_list.append([cardType.AIR_PLANE_SINGLE, max_card, cards_len, laizi_count])
+                _add_type_into_result([cardType.AIR_PLANE_SINGLE, max_card, cards_len, laizi_count], type_list)
 
             # 翅膀计算
             for one_card in card_count[2]:
                 more_cards += 3 if one_card not in one_air else 0
             # more_cards 为除了构成飞机的所有牌
             if three_number_card == more_cards:  #
-                type_list.append([cardType.AIR_PLANE_SINGLE, max_card, cards_len, laizi_count])
+                _add_type_into_result([cardType.AIR_PLANE_SINGLE, max_card, cards_len, laizi_count], type_list)
             # 飞机带双翅膀的情况
             two_chibang = len(card_two)
             for one_card in card_count[2]:
@@ -437,12 +401,11 @@ def _try_to_make_air_and_chibang(one_air, laizi_count, card_count, type_list, ca
                 two_chibang += (more_laizi-len(card_one)) / 2
 
             if three_number_card == two_chibang:
-                type_list.append([cardType.AIR_PLANE_DOUBLE, max_card, cards_len, laizi_count])
+                _add_type_into_result([cardType.AIR_PLANE_DOUBLE, max_card, cards_len, laizi_count], type_list)
 
             if three_number_card > 2 and more_cards < three_number_card:
                 sub_air = one_air[: -1]
             continue
-
     return sub_air
 
 
@@ -464,7 +427,8 @@ def _can_make_doubleshun(card_count, laizi_count, type_list, cards_len):
                     max_card = mix_cards[-1] + more_laizi if mix_cards[-1] + more_laizi <= 12 else 12
                 else:
                     return
-            type_list.append([cardType.DOUBLE_SHUN, max_card, cards_len, laizi_count])
+            one_type = [cardType.DOUBLE_SHUN, max_card, cards_len, laizi_count]
+            _add_type_into_result(one_type, type_list)
 
 
 def _can_make_shanshun(cards_count, laizi_count, type_list, cards_len):
@@ -476,18 +440,21 @@ def _can_make_shanshun(cards_count, laizi_count, type_list, cards_len):
         return
     if not new_cards:
         return
+    max_card = -1
     new_cards_len = len(new_cards)
     max_gap = new_cards[-1] - new_cards[0]
     # if more_laizi >= 3 and max_gap <= new_cards_len - 1 + more_laizi/3:
     if (more_laizi >= 3 and max_gap == new_cards_len - 1 + more_laizi/3 and more_laizi - 3 == 0) or \
             (max_gap == new_cards_len - 1 and more_laizi == 0):  # lianxu
         max_card = new_cards[-1]
-        type_list.append([cardType.THREE_SHUN, max_card, cards_len, laizi_count])
+
     elif max_gap == new_cards_len - 1 and more_laizi == 3:   # and more_laizi == 0:  # 三顺有剩余的癞子的
         # max_card = max(cards_count[2])
         tmp_gap = (new_cards_len-1+more_laizi/3) - max_gap
         max_card = 12 if new_cards[-1] >= 12 - tmp_gap else new_cards[-1] + tmp_gap
-        type_list.append([cardType.THREE_SHUN, max_card, cards_len, laizi_count])
+    if max_card != -1:
+        one_type = [cardType.THREE_SHUN, max_card, cards_len, laizi_count]
+        _add_type_into_result(one_type, type_list)
 
 
 def _judge_lianxu(cards):
@@ -497,20 +464,20 @@ def _judge_lianxu(cards):
     return card_set_list[-1] - card_set_list[0] - (card_set_len - 1)
 
 
-def _judge_single_can_be_shun_with_laizi(cards, laizi_count):
-    """有癞子情况下嫩否构成单顺"""
-    len_set_cards = len(cards)
-    if CARD_TWO in cards or BIGKING in cards or LITTLEKING in cards:
-        return False
-    if cards[len_set_cards - 1] - cards[0] <= len_set_cards - 1 + laizi_count:
-        return True
+# def _judge_single_can_be_shun_with_laizi(cards, laizi_count):
+#     """有癞子情况下嫩否构成单顺"""
+#     len_set_cards = len(cards)
+#     if CARD_TWO in cards or BIGKING in cards or LITTLEKING in cards:
+#         return False
+#     if cards[len_set_cards - 1] - cards[0] <= len_set_cards - 1 + laizi_count:
+#         return True
 
 
 def _judge_single_shun_with_laizi(cards, laizi_count, type_list, cards_len):
     """有癞子情况下嫩否构成单顺"""
     len_set_cards = len(cards)
     cards = sorted(cards)
-    if not cards or (len_set_cards +  laizi_count) < 5:
+    if not cards or (len_set_cards + laizi_count) < 5:
         return
     if cards[-1] - cards[0] <= len_set_cards - 1 + laizi_count:
         # find max_card
@@ -523,119 +490,188 @@ def _judge_single_shun_with_laizi(cards, laizi_count, type_list, cards_len):
             else:
                 max_card = cards[-1]
         else:
-            max_card = _find_max(cards)
-        type_list.append([cardType.SINGLE_SHUN, max_card, cards_len, laizi_count])
+            tmp_gap = cards[-1] - cards[0] - (len_set_cards-1)
+            more_laizi = laizi_count - tmp_gap
+            max_card = 12 if cards[-1] >= 12 - more_laizi else cards[-1] + more_laizi
+        one_type = [cardType.SINGLE_SHUN, max_card, cards_len, laizi_count]
+        _add_type_into_result(one_type, type_list)
 
 
-def _five_cards_judge(cards, laizi, type_list):
+def _five_cards_judge(card_count, laizi, type_list, laizi_count, cards_len):
     """五张牌判牌逻辑   1+2+3+4+5, 3n+2"""
-    # 大小王在不能构成有效牌型
-    cards_len = len(cards)
-    laizi_count = cards.count(laizi)
-    if laizi_count:
-        _remove_types_of_card(cards, laizi, laizi_count)
-    card_count = _card_counter(cards)  # 二维数组card_count[[0], [1], [1], [0]]  单牌:0, 对子:1 三个:1, 四个:0
-    if BIGKING in cards or LITTLEKING in cards:
-        type_list.append([cardType.NOTHING, _find_max(cards), cards_len, laizi_count])
+    if BIGKING in card_count[0] or LITTLEKING in card_count[0]:
+        type_list.append([cardType.NOTHING, _find_max(card_count[0]), cards_len, laizi_count])
         return
+    # ---------------   只有单牌，判断能否构成单顺
+    if len(card_count[1]) == len(card_count[2]) == len(card_count[3]) == 0:
+        _judge_single_shun_with_laizi(card_count[0], laizi_count, type_list, cards_len)
+
+    # 3n+2
+    one_type = []
+    if not laizi_count:
+        if card_count[2] == card_count[1] == 1:
+            one_type = [cardType.THREE_DOUBLE, card_count[2][0], cards_len, laizi_count]
+    elif laizi_count == 1:   # 3n+1+laizi
+        if len(card_count[2]) == 1:
+            max_card = card_count[2][0]
+        elif len(card_count[1]) == 2:  # 2n+2m+laizi
+            max_card = _find_max(card_count[1])
+        elif len(card_count[1]) == 1 and len(card_count[0]) == 2:  # 1+1+2n+laizi
+            max_card = card_count[1][0]
+        else:
+            max_card = -1
+        if max_card != -1:
+            one_type = [cardType.THREE_DOUBLE, max_card, cards_len, laizi_count]
+    elif laizi_count == 2:
+        max_card = -1
+        if len(card_count[1]) == len(card_count[0]) == 1:
+            max_card = _find_max([card_count[0][0], card_count[1][0]])
+        elif len(card_count[2]) == 1:
+            max_card = card_count[2][0]
+        if max_card != -1:
+            one_type = [cardType.THREE_DOUBLE, max_card, cards_len, laizi_count]
+    elif laizi_count == 3:
+        if len(cards_len[0]) == 2:
+            max_card = _find_max(card_count[0])
+        else:
+            max_card = card_count[1][0]
+        one_type = [cardType.THREE_DOUBLE, max_card, cards_len, laizi_count]
+    elif laizi_count == 4:   # 4laizi+1  默认可组成最大的三代二
+        max_card = _find_max([card_count[0][0], laizi])
+        one_type = [cardType.THREE_DOUBLE, max_card, cards_len, laizi_count]
+    if one_type:
+        # one_type = [cardType.NOTHING, _find_max(card_count[0]), cards_len, laizi_count]
+        _add_type_into_result(one_type, type_list)
+
+
     # 此时的cards不包含癞子牌
-    if len(card_count[1]) == len(card_count[2]) == len(card_count[3]) == 0 and CARD_TWO not in cards:   # 只有单牌
-        _judge_single_shun_with_laizi(cards, laizi_count, type_list, cards_len)
+    # if len(card_count[1]) == len(card_count[2]) == len(card_count[3]) == 0 and CARD_TWO not in cards:   # 只有单牌
+    #     _judge_single_shun_with_laizi(cards, laizi_count, type_list, cards_len)
+    #
+    # # 3n+2laizi, 3n+2m
+    # if len(card_count[2]) == 1 and (laizi_count == 2 or len(card_count[1]) == 1):
+    #     max_card = card_count[2][0]  # _find_card_by_count(cards, 3)
+    #     type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
+    # # 3n+1+laizi =>3n=2/4n+1
+    # elif len(card_count[2]) == 1 and len(card_count[0]) == 1 and laizi_count == 1:
+    #     max_card = card_count[2][0]   # _find_card_by_count(cards, 3)
+    #     type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
+    #     # type_list.append([cardType.FOUR_TWO_SIGLE, max_card])
+    # elif len(card_count[1]) == 1 and laizi_count == 3:  # 3laizi+2n
+    #     max_card = laizi if laizi > card_count[1][0] else card_count[1][0]
+    #     type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
+    #     # type_list.append([cardType.FOUR_TWO_SIGLE, card_count[1][0]])  # 4n+1
+    #
+    # elif len(card_count[1]) == 2 and laizi_count == 1:   # 2n+2m+laizi
+    #     type_list.append([cardType.THREE_DOUBLE, _find_max(card_count[1]), cards_len, laizi_count])
+    # # 2+1+2laizi/3laizi+1+1
+    # elif len(card_count[1]) == 1 and laizi_count == 2 and len(card_count[0]) == 1:
+    #     max_card = _find_max(card_count[1] + card_count[0])
+    #     type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
+    #     # type_list.append([cardType.FOUR_TWO_SIGLE, card_count[1][0]])
+    #
+    # elif laizi_count == 3 and len(card_count[0]) == 2:  # 2n+1+2laizi
+    #     max_card = _find_max(card_count[0])
+    #     type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
+    #     # type_list.append([cardType.FOUR_TWO_SIGLE, max_card])
+    # elif laizi_count == 3 and len(card_count[1]) == 1:   # 3laizi+2
+    #     max_card = laizi if laizi > card_count[1][0] else card_count[1][0]
+    #     type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
+    #     # type_list.append([cardType.FOUR_TWO_SIGLE, max_card])
+    # elif laizi_count == 4 and len(card_count[0]) == 1:
+    #     max_card = laizi if laizi > card_count[0][0] else card_count[0][0]
+    #     # type_list.append([cardType.FOUR_TWO_SIGLE, laizi])
+    #     type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
+    #
+    # if not type_list:
+    #     type_list.append([cardType.NOTHING, max(cards), cards_len, laizi_count])
 
-    # 3n+2laizi, 3n+2m
-    if len(card_count[2]) == 1 and (laizi_count == 2 or len(card_count[1]) == 1):
-        max_card = card_count[2][0]  # _find_card_by_count(cards, 3)
-        type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
-    # 3n+1+laizi =>3n=2/4n+1
-    elif len(card_count[2]) == 1 and len(card_count[0]) == 1 and laizi_count == 1:
-        max_card = card_count[2][0]   # _find_card_by_count(cards, 3)
-        type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
-        # type_list.append([cardType.FOUR_TWO_SIGLE, max_card])
-    elif len(card_count[1]) == 1 and laizi_count == 3:  # 3laizi+2n
-        max_card = laizi if laizi > card_count[1][0] else card_count[1][0]
-        type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
-        # type_list.append([cardType.FOUR_TWO_SIGLE, card_count[1][0]])  # 4n+1
 
-    elif len(card_count[1]) == 2 and laizi_count == 1:   # 2n+2m+laizi
-        type_list.append([cardType.THREE_DOUBLE, _find_max(card_count[1]), cards_len, laizi_count])
-    # 2+1+2laizi/3laizi+1+1
-    elif len(card_count[1]) == 1 and laizi_count == 2 and len(card_count[0]) == 1:
-        max_card = _find_max(card_count[1] + card_count[0])
-        type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
-        # type_list.append([cardType.FOUR_TWO_SIGLE, card_count[1][0]])
-
-    elif laizi_count == 3 and len(card_count[0]) == 2:  # 2n+1+2laizi
-        max_card = _find_max(card_count[0])
-        type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
-        # type_list.append([cardType.FOUR_TWO_SIGLE, max_card])
-    elif laizi_count == 3 and len(card_count[1]) == 1:   # 3laizi+2
-        max_card = laizi if laizi > card_count[1][0] else card_count[1][0]
-        type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
-        # type_list.append([cardType.FOUR_TWO_SIGLE, max_card])
-    elif laizi_count == 4 and len(card_count[0]) == 1:
-        max_card = laizi if laizi > card_count[0][0] else card_count[0][0]
-        # type_list.append([cardType.FOUR_TWO_SIGLE, laizi])
-        type_list.append([cardType.THREE_DOUBLE, max_card, cards_len, laizi_count])
-
-    if not type_list:
-        type_list.append([cardType.NOTHING, max(cards), cards_len, laizi_count])
-
-
-def _four_cards_judge(cards, laizi, type_list):
+def _four_cards_judge(card_count, laizi, type_list, laizi_count, cards_len):
     """四张牌判牌逻辑  maybe: 4n, 3n+1"""
-    cards_len = len(cards)
-    laizi_count = cards.count(laizi)
-    if laizi_count:
-        _remove_types_of_card(cards, laizi, laizi_count)
-    card_count = _card_counter(cards)  # 四元数组card_count[0, 1, 1, 0]  单牌:0, 对子:1 三个:1, 四个:0
-    if len(card_count[3]) == 1:   # 4n
-        type_list.append([cardType.BOMB, cards[0], cards_len, laizi_count])
-    elif len(card_count[2]) == 1 and (laizi_count == 1 or len(card_count[0]) == 1):   #3n+1, 3n+laizi
-        max_card = card_count[2][0]    # _find_card_by_count(cards, 3)
-        type_list.append([cardType.THREE_ONE, max_card, cards_len, laizi_count])
-        if laizi_count == 1:
-            type_list.append([cardType.BOMB, max_card, cards_len, laizi_count])
-    elif len(card_count[1]) == 1 and laizi_count == 1 and len(card_count[0]) == 1:
-        type_list.append([cardType.THREE_ONE, card_count[1][0], cards_len, laizi_count])
-    elif len(card_count[1]) == 1 and laizi_count == 2:  # 2n+2laizi =>3n+1 or 4n
-        two_number_card = card_count[1][0]  # _find_card_by_count(cards, 2)
-        max_card = two_number_card if two_number_card > laizi else laizi
-        type_list.append([cardType.THREE_ONE, max_card, cards_len, laizi_count])
-        type_list.append([cardType.BOMB, two_number_card, cards_len, laizi_count])
-    elif len(card_count[0]) == 1 and laizi_count == 3:
-        max_card = laizi if laizi > card_count[0][0] else card_count[0][0]  # _find_card_by_count(cards, 1)
-        type_list.append([cardType.THREE_ONE, max_card, cards_len, laizi_count])
-        type_list.append([cardType.BOMB, card_count[0][0], cards_len, laizi_count])
-    elif laizi_count == 4:
-        type_list.append([cardType.BOMB, laizi, cards_len, laizi_count])
-    elif len(card_count[0]) == 2 and laizi_count == 2:
-        max_card = _find_max(card_count[0])
-        type_list.append([cardType.THREE_ONE, max_card])
-    else:
-        type_list.append([cardType.NOTHING, _find_max(cards), cards_len, laizi_count])
+    one_type = []
+    #  3n+1/ 4n
+    if len(card_count[3]) == 1 or laizi_count == 4:   # 4n/4laizi
+        max_card = card_count[3][0] if card_count[3] else laizi
+        one_type = [cardType.BOMB, max_card, cards_len, laizi_count]
+
+    # 根据赖子数量判断牌型
+    elif laizi_count == 0:  # 3n+1
+        if len(card_count[2]) == 1 and len(card_count[0]) == 1:
+            one_type = [cardType.THREE_ONE, card_count[2][0], cards_len, laizi_count]
+    elif laizi_count == 1:
+        if len(card_count[2]) == 1:
+            one_type = [cardType.THREE_ONE, card_count[2][0], cards_len, laizi_count]
+        elif len(card_count[1]) == len(card_count[0]) == 1:
+            one_type = [cardType.THREE_ONE, card_count[1][0], cards_len, laizi_count]
+    elif laizi_count == 2:
+        # 1+1+2laizi
+        if len(card_count[0]) == 2 and (card_count[0][0] not in [BIGKING, LITTLEKING] or
+                                        card_count[0][1] not in [BIGKING, LITTLEKING]):
+            if card_count[0][1] in [BIGKING, LITTLEKING]:
+                max_card = card_count[0][0]
+            elif card_count[0][0] in [BIGKING, LITTLEKING]:
+                max_card = card_count[0][1]
+            else:
+                max_card = _find_max(card_count[0])
+            one_type = [cardType.THREE_ONE, max_card, cards_len, laizi_count]
+        elif len(card_count[1]) == len(card_count[0]) == 1:
+            one_type = [cardType.THREE_ONE, card_count[1][0], cards_len, laizi_count]
+    else:   # laizi_count=3:
+        max_card = card_count[1][0] if card_count[1][0] == CARD_TWO else CARD_TWO
+        one_type = [cardType.THREE_ONE, max_card, cards_len, laizi_count]
+        _add_type_into_result(one_type, type_list)
+        one_type = [cardType.BOMB, card_count[0][0], cards_len, laizi_count]
+    if not one_type:
+        one_type = [cardType.NOTHING, _find_max(cards), cards_len, laizi_count]
+
+    _add_type_into_result(one_type, type_list)
 
 
-def _three_cards_judge(cards, laizi, type_list):
+    # elif len(card_count[2]) == 1 and (laizi_count == 1 or len(card_count[0]) == 1):   #3n+1, 3n+laizi
+    #     max_card = card_count[2][0]    # _find_card_by_count(cards, 3)
+    #     type_list.append([cardType.THREE_ONE, max_card, cards_len, laizi_count])
+    #     if laizi_count == 1:
+    #         type_list.append([cardType.BOMB, max_card, cards_len, laizi_count])
+    # elif len(card_count[1]) == 1 and laizi_count == 1 and len(card_count[0]) == 1:
+    #     type_list.append([cardType.THREE_ONE, card_count[1][0], cards_len, laizi_count])
+    # elif len(card_count[1]) == 1 and laizi_count == 2:  # 2n+2laizi =>3n+1 or 4n
+    #     two_number_card = card_count[1][0]  # _find_card_by_count(cards, 2)
+    #     max_card = two_number_card if two_number_card > laizi else laizi
+    #     type_list.append([cardType.THREE_ONE, max_card, cards_len, laizi_count])
+    #     type_list.append([cardType.BOMB, two_number_card, cards_len, laizi_count])
+    # elif len(card_count[0]) == 1 and laizi_count == 3:
+    #     max_card = laizi if laizi > card_count[0][0] else card_count[0][0]  # _find_card_by_count(cards, 1)
+    #     type_list.append([cardType.THREE_ONE, max_card, cards_len, laizi_count])
+    #     type_list.append([cardType.BOMB, card_count[0][0], cards_len, laizi_count])
+    # elif laizi_count == 4:
+    #     type_list.append([cardType.BOMB, laizi, cards_len, laizi_count])
+    # elif len(card_count[0]) == 2 and laizi_count == 2:
+    #     if BIGKING not in card_count[0] and LITTLEKING not in card_count[0]:
+    #         max_card = _find_max(card_count[0])
+    #     else:
+    #         max_card = card_count[0][0] if card_count[0][0] not in [BIGKING, LITTLEKING] else card_count[0][1]
+    #     type_list.append([cardType.THREE_ONE, max_card, cards_len, laizi_count])
+    # else:
+    #     type_list.append([cardType.NOTHING, _find_max(cards), cards_len, laizi_count])
+
+
+def _three_cards_judge(card_count, laizi, type_list, laizi_count, cards_len):
     """三张牌判牌逻辑"""
-    cards_len = len(cards)
-    laizi_count = cards.count(laizi)
-    if laizi_count:
-        _remove_types_of_card(cards, laizi, laizi_count)
-    card_count = _card_counter(cards)    # 四元数组card_count[0, 1, 1, 0]  单牌:0, 对子:1 三个:1, 四个:0
     # 一个三元组, 2n+laizi, 1+2laizi
     if len(card_count[2]) == 1 or (len(card_count[1]) == 1 and laizi_count == 1) or \
             (len(card_count[0]) == 1 and laizi_count == 2):
         if len(card_count[2]) == 1:
-            max_card = cards[0]
-        elif len(card_count[1]) == 1:
-            max_card = card_count[1][0]  # _find_card_by_count(cards, 2)
+            max_card = card_count[2][0]
         else:    # card_count[0] == 1:
-            max_card = card_count[0][0]
-        type_list.append([cardType.THREE, max_card, cards_len, laizi_count])
+            max_card = cards[0]
+        one_type = [cardType.THREE, max_card, cards_len, laizi_count]
+        # _add_type_into_result(one_type, type_list)
     elif laizi_count == 3:
-        type_list.append([cardType.THREE, laizi, cards_len, laizi_count])
+        one_type = [cardType.THREE, laizi, cards_len, laizi_count]
     else:
-        type_list.append([cardType.NOTHING, _find_max(cards), cards_len, laizi_count])
+        one_type = [cardType.NOTHING, _find_max(cards), cards_len, laizi_count]
+    _add_type_into_result(one_type, type_list)
 
 
 def _find_card_by_count(cards, count):
@@ -748,41 +784,48 @@ def compareCard(card_type1, card_type2):
 
 
 def test():
-    card1 = [0]
-    card2 = [12, 12, 12, 1]
+    card1 = [5]
+    card2 = [51]
+
     cardType1 = getCardType(card1, 1)
-    cardType2 = getCardType(card2, 1)
-    print(compareCard(cardType1[0], cardType2[1]))
+    cardType2 = getCardType(card2, 5)
+    print(cardType1, cardType2)
+    print(compareCard(cardType1[0], cardType2[0]))
+
+
+# 0-12 黑２-A  0: 2       1: 3
+# 13-25 红２－Ａ  13: 2    14: 3
+# 26-38 梅２－a
+# 39-51 方２－Ａ
+# 52  小王
+# 53  大王
 
 
 if __name__ == '__main__':
     cards = [
-        # [9, 9, 9, 10, 10, 4, 6, 6],
-        # [1, 2, 3, 4, 5],
-        # [0, 4, 4],
-        # [1, 1, 2, 2, 3, 3],
-        # [6, 7, 8, 9, 10, 12, 5],
-        # [0, 0],
-        # [8],
-        # [2, 3, 4, 5, 1, 7, 8, 9, 10],
-        # [2, 2, 4, 4, 6, 6, 12, 12],
-        # [8, 9, 9, 10, 10, 10, 5, 5],
-        # [1, 14, 27, 2, 15, 29, 10, 12],
-        # [2,2,2,3,3,4,10, 12],
-        # [1, 2, 3, 4, 5, 6, 7, 7, 7, 10, 11, 12],
-        # [15, 41, 18, 16, 42, 5, 17, 45],
-        # [29, 3, 18, 5, 21, 8],
-        #[2, 2, 2, 3, 3, 4, 4, 4, 5],
-        # [10, 10, 12, 5, 1, 1],
-        [0, 0, 8, 8, 9, 9, 9, 12, 12, 6],
-        [2, 2, 3, 3, 3, 5, 5, 4, 4, 6],
-        [1, 1, 1, 1, 2, 2, 2, 3, 3, 6],
-        [15, 41, 18, 16, 42, 5, 17, 45]
+        # ([6, 6, 6, 6, 9], 6),
+        # ([10, 23, 36, 2, 15, 28, 4, 5], 10),
+        # ([2, 3, 5, 5, 5, 6, 6, 6], 10),
+        # ([0, 0, 0, 0, 12, 12, 9, 7], 0),
+        # ([2, 3, 3, 4, 4, 4, 5, 5, 7, 7, 9, 9], 9),
+        # ([6, 6, 6, 6, 9], 6),
+        # ([8, 6, 19, 52], 8),
+        # ([12, 24, 37, 8], 8),
+        # ([12, 12, 8, 8, 0, 0, 0, 0], 0),
+        ([1, 1, 1, 2, 2, 2, 3, 3, 4, 4], 0)
 
     ]
-    laizi = 6
-    for card in cards:
-        card_type = getCardType(card, laizi)
-        print("card type: {}".format(card_type))
+    for item in cards:
+        print(getCardType(*item))
+    # print getCardType(cards, 10)
     # test()
 
+    # c1 = getCardType([3, 3, 3, 4, 4, 5, 6, 8], 3)
+    # c1 = getCardType([0, 0 ,0, 12, 12, 9, 7], 0)
+    # print(c1)
+    # c2 = getCardType([12, 24, 37, 8], 8)
+    # print(c1)
+    # print(c2)
+    # #c2 = getCardType([4,5,6,7,8], 10)
+    # #lazi =  10
+    # print(compareCard(c1[0], c2[0]))
