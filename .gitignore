@@ -1,1 +1,3 @@
-. .. .DS_Store .README.md.un~ .git .gitignore .idea
+.idea*
+DS_Store*
+*.pyc
