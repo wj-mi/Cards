@@ -15,3 +15,18 @@
     # 53  大王
 """
 
+
+class Robot(object):
+    """机器人"""
+    def __init__(self, name):
+        self.name = name
+        self.cards = []
+        self.is_dz = False
+
+    def get_cards(self, card):
+        """拿牌程序"""
+        self.cards.extend(card)
+
+
+Users = [Robot("robot1"), Robot("robot2"), Robot("robot3")]
+
