@@ -15,6 +15,8 @@
     # 53  大王
 """
 
+from DZ.doudizhucardHelper import cardType
+
 
 class Robot(object):
     """机器人"""
@@ -27,6 +29,23 @@ class Robot(object):
         """拿牌程序"""
         self.cards.extend(card)
 
+    def find_group(self):
+        pass
+
+
+    def choose_type(self, per_type=-1):
+        """choose type of cards to out from handcards.
+        return an list of cards
+        """
+        if per_type == -1:
+            # find all group
+            self.find_group()
+
 
 Users = [Robot("robot1"), Robot("robot2"), Robot("robot3")]
 
+
+if __name__ == '__main__':
+    user = Robot("robot")
+    user.cards = [0, 11, 50, 3, 23, 5, 31, 7, 53, 9, 48, 13, 24, 8, 12, 15, 16, 17]
+    user.find_group()

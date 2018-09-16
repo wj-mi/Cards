@@ -29,6 +29,22 @@ def log_config():
                         filemode='w')
 
 
+def write_log(user, msg, level="info"):
+    """暂时写debug  和info 好了"""
+    if level == "info":
+        logging.info("{}: {}".format(user.name, msg))
+    elif level == "debug":
+        logging.debug("{}: {}".format(user.name, msg))
+
+
+def game():
+    """ """
+    #  记录上家牌型 -1 则重新选择牌型出牌
+    pre_type = -1
+    for user in Users:
+        pass
+
+
 def main():
     log_config()
     logging.info("New Game start:")
@@ -37,6 +53,8 @@ def main():
     logging.info("laizi card: {}".format(laizi))
     # 发牌
     game_start(pokers)
+    # 进入打牌
+    game()
 
 
 if __name__ == '__main__':
